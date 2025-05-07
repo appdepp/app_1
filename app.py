@@ -51,8 +51,13 @@ def load_data():
         st.write("📊 Первые 5 строк данных")
         st.dataframe(df.head())
         st.write("ℹ️ Информация о DataFrame")
-        buffer = df.info(buf=None)
-        st.text(df.info())
+
+        from io import StringIO
+        buffer = StringIO()
+        df.info(buf=buffer)
+        s = buffer.getvalue()
+        st.text(s)
+
         return df
 
     return None
