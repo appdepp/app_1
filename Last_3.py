@@ -26,7 +26,7 @@ def load_data():
             return None
         file_selected = st.selectbox("Выберите файл", files)
         try:
-            df = pd.read_csv(file_selected)
+            df = pd.read_csv(file_selected, on_bad_lines='skip')
         except Exception as e:
             st.error(f"❌ Ошибка при загрузке: {e}")
             return None
@@ -36,13 +36,14 @@ def load_data():
         uploaded_file = st.file_uploader("Загрузите CSV-файл", type="csv")
         if uploaded_file is not None:
             try:
-                df = pd.read_csv(uploaded_file)
+                df = pd.read_csv(uploaded_file, on_bad_lines='skip')
             except Exception as e:
                 st.error(f"❌ Ошибка при чтении файла: {e}")
                 return None
 
     # Отображаем информацию о загруженных данных
     if df is not None:
+        df = df.apply(lambda col: pd.to_numeric(col, errors='ignore') if col.dtypes == 'object' else col)
         st.success("✅ Данные успешно загружены")
         st.write("📊 Первые 5 строк данных")
         st.dataframe(df.head())
@@ -166,6 +167,14 @@ def main():
 
     # Анализ и заполнение пропусков
     if show_missing(df) > 0:
+        if st.checkbox("🧹 Удалить дубликаты"):
+            duplicates = df.duplicated().sum()
+            st.info(f"🔁 Найдено дубликатов: {duplicates}")
+            if duplicates > 0 and st.button("Удалить дубликаты"):
+                df = df.drop_duplicates()
+                st.success("✅ Дубликаты удалены")
+        if st.checkbox("📊 Показать describe()"):
+            st.write(df.describe())
         if st.checkbox("🔧 Обработать пропущенные значения вручную"):
             df = fill_missing(df)
         if st.checkbox("🤖 Автоматически обработать все пропуски"):
@@ -174,6 +183,11 @@ def main():
     # Агрегация и визуализация
     if st.checkbox("📈 Провести агрегацию и визуализацию"):
         aggregate_summary(df)
+    if st.checkbox("🧠 Показать матрицу корреляции"):
+        corr = df.corr(numeric_only=True)
+        fig, ax = plt.subplots(figsize=(10, 6))
+        sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
+        st.pyplot(fig)
 
     # Сохранение обработанных данных
     if st.checkbox("💾 Сохранить обработанный DataFrame"):
@@ -194,6 +208,18 @@ def main():
             file_name=filename,
             mime='text/csv'
         )
+        import io
+
+        if st.checkbox("📥 Скачать как Excel (.xlsx)"):
+            towrite = io.BytesIO()
+            df.to_excel(towrite, index=False, sheet_name='Data')
+            towrite.seek(0)
+            st.download_button(
+                label="⬇️ Скачать Excel-файл",
+                data=towrite,
+                file_name="cleaned_data.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
 # Запуск приложения
 if __name__ == "__main__":
