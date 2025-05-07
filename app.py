@@ -153,25 +153,27 @@ def main():
         aggregate_summary(df)
 
     if st.checkbox("💾 Сохранить / Скачать обработанный DataFrame"):
-        filename = st.text_input("Введите имя файла для сохранения", "cleaned_data.csv")
+        default_filename = "cleaned_data.csv"
+
+        # Ввод имени файла
+        custom_filename = st.text_input("Введите имя файла для сохранения", value=default_filename)
 
         # Кнопка для скачивания
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="⬇️ Скачать CSV-файл",
             data=csv,
-            file_name=filename,
+            file_name=custom_filename,
             mime='text/csv'
         )
 
-        # Кнопка для сохранения в рабочую директорию
+        # Кнопка для сохранения в директорию
         if st.button("💾 Сохранить в директорию сервера"):
-            if filename:
-                try:
-                    df.to_csv(filename, index=False)
-                    st.success(f"✅ Файл сохранён локально как `{filename}` в директории")
-                except Exception as e:
-                    st.error(f"❌ Ошибка при сохранении: {e}")
+            try:
+                df.to_csv(custom_filename, index=False)
+                st.success(f"✅ Файл сохранён на сервере как `{custom_filename}`")
+            except Exception as e:
+                st.error(f"❌ Ошибка при сохранении: {e}")
             else:
                 st.error("❌ Пожалуйста, введите имя файла!")
 
