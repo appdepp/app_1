@@ -141,13 +141,15 @@ def aggregate_summary(df):
 def main():
     st.title("🧼 Очистка и анализ данных")
 
-    # Проверяем, если кнопка нажата, только тогда перезагружаем
+    # Место для динамического отображения
+    files_placeholder = st.empty()
+
     if st.button("🔄 Обновить список файлов"):
-        if "rerun" not in st.session_state:  # Проверяем, если не было ранее перезагрузки
-            st.session_state.rerun = True
-            st.experimental_rerun()
+        files = [f for f in os.listdir() if f.endswith(".csv")]
+        if files:
+            files_placeholder.selectbox("Выберите файл", files)
         else:
-            st.warning("✅ Обновление уже выполнено")
+            st.warning("❌ Нет доступных файлов")
 
     df = load_data()
     if df is None:
