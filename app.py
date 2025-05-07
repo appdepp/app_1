@@ -140,8 +140,14 @@ def aggregate_summary(df):
 
 def main():
     st.title("🧼 Очистка и анализ данных")
+
+    # Проверяем, если кнопка нажата, только тогда перезагружаем
     if st.button("🔄 Обновить список файлов"):
-        st.experimental_rerun()
+        if "rerun" not in st.session_state:  # Проверяем, если не было ранее перезагрузки
+            st.session_state.rerun = True
+            st.experimental_rerun()
+        else:
+            st.warning("✅ Обновление уже выполнено")
 
     df = load_data()
     if df is None:
