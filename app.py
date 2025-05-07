@@ -10,8 +10,8 @@ def load_data():
 
     method = st.radio("Выберите способ загрузки", [
         "Из списка файлов в папке",
-        "Загрузить файл с компьютера",  # 👈 Новый способ
-        "Загрузить Excel-файл"  # 👈 Добавлен новый способ
+        "Загрузить файл с компьютера",
+        "Загрузить Excel-файл"
     ])
     df = None
 
@@ -22,7 +22,7 @@ def load_data():
             return None
         file_selected = st.selectbox("Выберите файл", files)
         try:
-            df = pd.read_csv(file_selected, encoding='ISO-8859-1')  # 👈 Пытаемся использовать другую кодировку
+            df = pd.read_csv(file_selected, encoding='ISO-8859-1')
         except Exception as e:
             st.error(f"❌ Ошибка при загрузке: {e}")
             return None
@@ -31,12 +31,12 @@ def load_data():
         uploaded_file = st.file_uploader("Загрузите CSV-файл", type="csv")
         if uploaded_file is not None:
             try:
-                df = pd.read_csv(uploaded_file, encoding='ISO-8859-1')  # 👈 Пытаемся использовать другую кодировку
+                df = pd.read_csv(uploaded_file, encoding='ISO-8859-1')
             except Exception as e:
                 st.error(f"❌ Ошибка при чтении файла: {e}")
                 return None
 
-    elif method == "Загрузить Excel-файл":  # Обработка Excel-файла
+    elif method == "Загрузить Excel-файл":
         uploaded_excel = st.file_uploader("Загрузите Excel-файл", type="xlsx")
         if uploaded_excel is not None:
             try:
@@ -61,7 +61,6 @@ def load_data():
 
     return None
 
-
 def show_missing(df):
     st.subheader("📉 Анализ пропущенных значений")
     missing = df.isnull().sum()
@@ -72,7 +71,6 @@ def show_missing(df):
         st.warning("⚠️ Пропущенные значения:")
         st.dataframe(missing[missing > 0])
     return total_missing
-
 
 def fill_missing(df):
     st.subheader("🧩 Заполнение пропусков вручную")
@@ -105,7 +103,6 @@ def fill_missing(df):
     st.success(f"✅ Пропуски в колонке '{col}' обработаны")
     return df
 
-
 def auto_fill_missing(df):
     st.subheader("⚙️ Автоматическое заполнение всех пропусков")
     for col in df.columns[df.isnull().any()]:
@@ -118,7 +115,6 @@ def auto_fill_missing(df):
             df[col] = df[col].fillna(method='ffill')
     st.success("✅ Все пропуски обработаны автоматически")
     return df
-
 
 def aggregate_summary(df):
     st.subheader("📊 Агрегация и визуализация")
@@ -149,7 +145,6 @@ def aggregate_summary(df):
     except Exception as e:
         st.error(f"❌ Ошибка: {e}")
 
-
 def main():
     st.title("🧼 Очистка и анализ данных")
 
@@ -173,6 +168,14 @@ def main():
             df.to_csv(filename, index=False)
             st.success(f"✅ Сохранено как {filename}")
 
+            # Добавляем кнопку для скачивания
+            csv = df.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                label="⬇️ Скачать CSV",
+                data=csv,
+                file_name=filename,
+                mime="text/csv"
+            )
 
 if __name__ == "__main__":
     main()
