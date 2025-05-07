@@ -6,6 +6,9 @@ import seaborn as sns
 import os
 from io import StringIO
 
+
+
+
 def try_read_csv(file):
     """Попытка прочитать CSV с несколькими кодировками"""
     encodings = ['utf-8', 'utf-16', 'cp1251', 'ISO-8859-1']
@@ -20,29 +23,26 @@ def load_data():
     st.header("📥 Загрузка данных")
     method = st.radio("Выберите способ загрузки", ["Из списка файлов", "Загрузить с компьютера"])
     df = None
-    file_path = None  # Здесь будет храниться путь к файлу
 
     if method == "Из списка файлов":
         files = [f for f in os.listdir() if f.endswith(".csv")]
         if not files:
             st.warning("❌ Нет CSV-файлов в папке")
-            return None, None
+            return None
         file_selected = st.selectbox("Выберите файл", files)
         try:
             df = try_read_csv(file_selected)
-            file_path = os.path.abspath(file_selected)  # Путь до выбранного файла
         except Exception as e:
             st.error(f"❌ Ошибка загрузки: {e}")
-            return None, None
+            return None
     else:
         uploaded_file = st.file_uploader("Загрузите CSV-файл", type="csv")
         if uploaded_file:
             try:
                 df = try_read_csv(uploaded_file)
-                file_path = uploaded_file.name  # Путь до загруженного файла
             except Exception as e:
                 st.error(f"❌ Ошибка при чтении: {e}")
-                return None, None
+                return None
 
     if df is not None:
         st.success("✅ Данные загружены")
@@ -53,9 +53,9 @@ def load_data():
         df.info(buf=buffer)
         st.text(buffer.getvalue())
 
-        return df, file_path
+        return df
 
-    return None, None
+    return None
 
 def show_missing(df):
     st.subheader("📉 Пропущенные значения")
@@ -153,21 +153,11 @@ def aggregate_summary(df):
     except Exception as e:
         st.error(f"❌ Ошибка визуализации: {e}")
 
-def save_to_server(df, file_path, filename):
-    """Сохранение файла на сервер в ту же директорию, что и исходный файл"""
-    if file_path:
-        dir_path = os.path.dirname(file_path)  # Путь к директории, где был загружен исходный файл
-        file_path_to_save = os.path.join(dir_path, filename)
-        df.to_csv(file_path_to_save, index=False)
-        st.success(f"✅ Файл успешно сохранен в директории: {file_path_to_save}")
-    else:
-        st.error("❌ Не удалось определить путь для сохранения файла")
-
 def main():
     st.set_page_config(page_title="Data Cleaner", layout="wide")
     st.title("🧼 Data Cleaner: Очистка и анализ CSV")
 
-    df, file_path = load_data()
+    df = load_data()
     if df is None:
         return
 
@@ -183,11 +173,10 @@ def main():
         aggregate_summary(df)
 
     if st.checkbox("💾 Сохранение результата"):
-        filename = st.text_input("Имя файла для сохранения:", "cleaned_data.csv")
+        filename = st.text_input("Имя файла:", "cleaned_data.csv")
         if filename:
-            if st.button("Сохранить на сервер"):
-                save_to_server(df, file_path, filename)
-                st.download_button("⬇️ Скачать CSV", df.to_csv(index=False).encode("utf-8"), file_name=filename, mime="text/csv")
+            csv = df.to_csv(index=False).encode("utf-8")
+            st.download_button("⬇️ Скачать CSV", csv, file_name=filename, mime="text/csv")
 
 if __name__ == "__main__":
     main()
