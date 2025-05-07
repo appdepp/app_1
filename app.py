@@ -9,8 +9,12 @@ from io import StringIO
 def load_data():
     st.header("📥 Загрузка данных")
 
-    method = st.radio("Выберите способ загрузки", ["Из списка файлов в папке", "Ввести путь вручную"])
-    path = None
+    method = st.radio("Выберите способ загрузки", [
+        "Из списка файлов в папке",
+        "Ввести путь вручную",
+        "Загрузить файл с компьютера"  # 👈 Новый способ
+    ])
+    df = None
 
     if method == "Из списка файлов в папке":
         files = [f for f in os.listdir() if f.endswith(".csv")]
@@ -18,27 +22,40 @@ def load_data():
             st.warning("❌ В папке нет CSV-файлов.")
             return None
         file_selected = st.selectbox("Выберите файл", files)
-        path = file_selected
-    else:
-        path = st.text_input("Введите путь к CSV-файлу:")
-
-    if path:
         try:
-            df = pd.read_csv(path)
-            st.success(f"✅ Файл '{path}' успешно загружен")
-            st.write("📊 Первые 5 строк данных", df.head())
-
-            st.write("ℹ️ Информация о DataFrame")
-            buffer = StringIO()
-            df.info(buf=buffer)
-            st.text(buffer.getvalue())
-
-            return df
+            df = pd.read_csv(file_selected)
         except Exception as e:
             st.error(f"❌ Ошибка при загрузке: {e}")
             return None
-    return None
 
+    elif method == "Ввести путь вручную":
+        path = st.text_input("Введите путь к CSV-файлу:")
+        if path:
+            try:
+                df = pd.read_csv(path)
+            except Exception as e:
+                st.error(f"❌ Ошибка при загрузке: {e}")
+                return None
+
+    elif method == "Загрузить файл с компьютера":
+        uploaded_file = st.file_uploader("Загрузите CSV-файл", type="csv")
+        if uploaded_file is not None:
+            try:
+                df = pd.read_csv(uploaded_file)
+            except Exception as e:
+                st.error(f"❌ Ошибка при чтении файла: {e}")
+                return None
+
+    if df is not None:
+        st.success("✅ Данные успешно загружены")
+        st.write("📊 Первые 5 строк данных")
+        st.dataframe(df.head())
+        st.write("ℹ️ Информация о DataFrame")
+        buffer = df.info(buf=None)
+        st.text(df.info())
+        return df
+
+    return None
 
 def show_missing(df):
     st.subheader("📉 Анализ пропущенных значений")
