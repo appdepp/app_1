@@ -11,7 +11,7 @@ def load_data():
 
     method = st.radio("Выберите способ загрузки", [
         "Из списка файлов в папке",
-        "Загрузить файл с компьютера"
+        "Загрузить файл с компьютера"  # ❌ Удалён ручной ввод пути
     ])
     df = None
 
@@ -153,15 +153,18 @@ def main():
         aggregate_summary(df)
 
     if st.checkbox("💾 Сохранить обработанный DataFrame"):
-        default_path = os.path.join(os.getcwd(), "cleaned_data.csv")
-        save_path = st.text_input("Введите полный путь и имя файла для сохранения", value=default_path)
+        filename = "cleaned_data.csv"
 
-        if st.button("Сохранить"):
-            try:
-                df.to_csv(save_path, index=False)
-                st.success(f"✅ Данные сохранены в файл:\n`{save_path}`")
-            except Exception as e:
-                st.error(f"❌ Ошибка при сохранении файла: {e}")
+        if st.button("💾 Сохранить в рабочую директорию"):
+            df.to_csv(filename, index=False)
+            st.success(f"✅ Файл сохранён как {filename} в текущей директории")
+
+        st.download_button(
+            label="⬇️ Скачать как CSV",
+            data=df.to_csv(index=False).encode('utf-8'),
+            file_name=filename,
+            mime='text/csv'
+        )
 
 if __name__ == "__main__":
     main()
