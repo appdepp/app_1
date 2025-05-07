@@ -11,7 +11,8 @@ def load_data():
 
     method = st.radio("Выберите способ загрузки", [
         "Из списка файлов в папке",
-        "Загрузить файл с компьютера"  # ❌ Удалён ручной ввод пути
+        "Ввести путь вручную",
+        "Загрузить файл с компьютера"  # 👈 Новый способ
     ])
     df = None
 
@@ -26,6 +27,15 @@ def load_data():
         except Exception as e:
             st.error(f"❌ Ошибка при загрузке: {e}")
             return None
+
+    elif method == "Ввести путь вручную":
+        path = st.text_input("Введите путь к CSV-файлу:")
+        if path:
+            try:
+                df = pd.read_csv(path)
+            except Exception as e:
+                st.error(f"❌ Ошибка при загрузке: {e}")
+                return None
 
     elif method == "Загрузить файл с компьютера":
         uploaded_file = st.file_uploader("Загрузите CSV-файл", type="csv")
@@ -42,6 +52,7 @@ def load_data():
         st.dataframe(df.head())
         st.write("ℹ️ Информация о DataFrame")
 
+        from io import StringIO
         buffer = StringIO()
         df.info(buf=buffer)
         s = buffer.getvalue()
@@ -61,6 +72,7 @@ def show_missing(df):
         st.warning("⚠️ Пропущенные значения:")
         st.dataframe(missing[missing > 0])
     return total_missing
+
 
 def fill_missing(df):
     st.subheader("🧩 Заполнение пропусков вручную")
@@ -93,6 +105,7 @@ def fill_missing(df):
     st.success(f"✅ Пропуски в колонке '{col}' обработаны")
     return df
 
+
 def auto_fill_missing(df):
     st.subheader("⚙️ Автоматическое заполнение всех пропусков")
     for col in df.columns[df.isnull().any()]:
@@ -105,6 +118,7 @@ def auto_fill_missing(df):
             df[col] = df[col].fillna(method='ffill')
     st.success("✅ Все пропуски обработаны автоматически")
     return df
+
 
 def aggregate_summary(df):
     st.subheader("📊 Агрегация и визуализация")
@@ -135,6 +149,7 @@ def aggregate_summary(df):
     except Exception as e:
         st.error(f"❌ Ошибка: {e}")
 
+
 def main():
     st.title("🧼 Очистка и анализ данных")
 
@@ -153,18 +168,11 @@ def main():
         aggregate_summary(df)
 
     if st.checkbox("💾 Сохранить обработанный DataFrame"):
-        filename = "cleaned_data.csv"
-
-        if st.button("💾 Сохранить в рабочую директорию"):
+        filename = st.text_input("Имя файла", "cleaned_data.csv")
+        if st.button("Сохранить"):
             df.to_csv(filename, index=False)
-            st.success(f"✅ Файл сохранён как {filename} в текущей директории")
+            st.success(f"✅ Сохранено как {filename}")
 
-        st.download_button(
-            label="⬇️ Скачать как CSV",
-            data=df.to_csv(index=False).encode('utf-8'),
-            file_name=filename,
-            mime='text/csv'
-        )
 
 if __name__ == "__main__":
     main()
