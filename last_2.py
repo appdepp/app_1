@@ -113,7 +113,7 @@ def aggregate_summary(df):
     value_col = st.selectbox("Числовая колонка для агрегации", numeric_cols)
 
     agg_func = st.selectbox("Функция агрегации", ["mean", "sum", "count", "min", "max"])
-    chart_type = st.selectbox("Тип графика", ["Гистограмма", "Диаграмма рассеяния", "Круговая диаграмма", "Тепловая карта"])
+    chart_type = st.selectbox("Тип графика", ["Гистограмма", "Диаграмма рассеяния", "Круговая диаграмма"])
 
     try:
         result = df.groupby(group_col)[value_col].agg(agg_func).reset_index()
@@ -126,8 +126,6 @@ def aggregate_summary(df):
             sns.scatterplot(x=group_col, y=value_col, data=result)
         elif chart_type == "Круговая диаграмма":
             plt.pie(result[value_col], labels=result[group_col], autopct='%1.1f%%')
-        elif chart_type == "Тепловая карта":
-            sns.heatmap(result.corr(), annot=True, cmap="coolwarm", linewidths=0.5)
 
         plt.title(f"{agg_func.upper()} {value_col} по {group_col}")
         plt.xticks(rotation=45)
@@ -136,21 +134,6 @@ def aggregate_summary(df):
         st.pyplot(fig)
     except Exception as e:
         st.error(f"❌ Ошибка: {e}")
-
-
-def visualize_missing(df):
-    st.subheader("📊 Визуализация пропущенных данных")
-    missing_data = df.isnull().sum()
-    missing_percentage = (missing_data / len(df)) * 100
-    missing_info = pd.DataFrame({"Missing Values": missing_data, "Percentage": missing_percentage})
-
-    st.dataframe(missing_info[missing_info['Missing Values'] > 0])
-
-    plt.figure(figsize=(10, 6))
-    sns.heatmap(df.isnull(), cbar=False, cmap="viridis")
-    plt.title("Тепловая карта пропущенных значений")
-    st.pyplot(plt)
-
 
 def main():
     st.title("🧼 Очистка и анализ данных")
