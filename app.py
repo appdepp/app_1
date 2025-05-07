@@ -15,36 +15,40 @@ def load_data():
         "Загрузить файл с компьютера"  # 👈 Новый способ
     ])
     df = None
+    file_path = None  # Переменная для хранения пути
 
     if method == "Из списка файлов в папке":
         files = [f for f in os.listdir() if f.endswith(".csv")]
         if not files:
             st.warning("❌ В папке нет CSV-файлов.")
-            return None
+            return None, None
         file_selected = st.selectbox("Выберите файл", files)
         try:
             df = pd.read_csv(file_selected)
+            file_path = os.path.abspath(file_selected)  # Путь к выбранному файлу
         except Exception as e:
             st.error(f"❌ Ошибка при загрузке: {e}")
-            return None
+            return None, None
 
     elif method == "Ввести путь вручную":
         path = st.text_input("Введите путь к CSV-файлу:")
         if path:
             try:
                 df = pd.read_csv(path)
+                file_path = path  # Устанавливаем путь вручную
             except Exception as e:
                 st.error(f"❌ Ошибка при загрузке: {e}")
-                return None
+                return None, None
 
     elif method == "Загрузить файл с компьютера":
         uploaded_file = st.file_uploader("Загрузите CSV-файл", type="csv")
         if uploaded_file is not None:
             try:
                 df = pd.read_csv(uploaded_file)
+                file_path = uploaded_file.name  # Путь к загруженному файлу
             except Exception as e:
                 st.error(f"❌ Ошибка при чтении файла: {e}")
-                return None
+                return None, None
 
     if df is not None:
         st.success("✅ Данные успешно загружены")
@@ -52,15 +56,14 @@ def load_data():
         st.dataframe(df.head())
         st.write("ℹ️ Информация о DataFrame")
 
-        from io import StringIO
         buffer = StringIO()
         df.info(buf=buffer)
         s = buffer.getvalue()
         st.text(s)
 
-        return df
+        return df, file_path
 
-    return None
+    return None, None
 
 def show_missing(df):
     st.subheader("📉 Анализ пропущенных значений")
@@ -72,7 +75,6 @@ def show_missing(df):
         st.warning("⚠️ Пропущенные значения:")
         st.dataframe(missing[missing > 0])
     return total_missing
-
 
 def fill_missing(df):
     st.subheader("🧩 Заполнение пропусков вручную")
@@ -105,7 +107,6 @@ def fill_missing(df):
     st.success(f"✅ Пропуски в колонке '{col}' обработаны")
     return df
 
-
 def auto_fill_missing(df):
     st.subheader("⚙️ Автоматическое заполнение всех пропусков")
     for col in df.columns[df.isnull().any()]:
@@ -118,7 +119,6 @@ def auto_fill_missing(df):
             df[col] = df[col].fillna(method='ffill')
     st.success("✅ Все пропуски обработаны автоматически")
     return df
-
 
 def aggregate_summary(df):
     st.subheader("📊 Агрегация и визуализация")
@@ -149,11 +149,20 @@ def aggregate_summary(df):
     except Exception as e:
         st.error(f"❌ Ошибка: {e}")
 
+def save_to_server(df, file_path, filename):
+    """Сохранение файла на сервер в ту же директорию, что и исходный файл"""
+    if file_path:
+        dir_path = os.path.dirname(file_path)  # Путь к директории, где был загружен исходный файл
+        file_path_to_save = os.path.join(dir_path, filename)
+        df.to_csv(file_path_to_save, index=False)
+        st.success(f"✅ Файл успешно сохранен в директории: {file_path_to_save}")
+    else:
+        st.error("❌ Не удалось определить путь для сохранения файла")
 
 def main():
     st.title("🧼 Очистка и анализ данных")
 
-    df = load_data()
+    df, file_path = load_data()
     if df is None:
         return
 
@@ -170,9 +179,8 @@ def main():
     if st.checkbox("💾 Сохранить обработанный DataFrame"):
         filename = st.text_input("Имя файла", "cleaned_data.csv")
         if st.button("Сохранить"):
-            df.to_csv(filename, index=False)
-            st.success(f"✅ Сохранено как {filename}")
-
+            save_to_server(df, file_path, filename)
+            st.download_button("⬇️ Скачать CSV", df.to_csv(index=False).encode("utf-8"), file_name=filename, mime="text/csv")
 
 if __name__ == "__main__":
     main()

@@ -6,103 +6,109 @@ import seaborn as sns
 import os
 from io import StringIO
 
-
-
-
-def try_read_csv(file):
-    """Попытка прочитать CSV с несколькими кодировками"""
-    encodings = ['utf-8', 'utf-16', 'cp1251', 'ISO-8859-1']
-    for enc in encodings:
-        try:
-            return pd.read_csv(file, encoding=enc)
-        except Exception:
-            continue
-    raise ValueError("❌ Не удалось прочитать CSV с поддерживаемыми кодировками")
-
 def load_data():
     st.header("📥 Загрузка данных")
-    method = st.radio("Выберите способ загрузки", ["Из списка файлов", "Загрузить с компьютера"])
-    df = None
 
-    if method == "Из списка файлов":
+    method = st.radio("Выберите способ загрузки", [
+        "Из списка файлов в папке",
+        "Ввести путь вручную",
+        "Загрузить файл с компьютера"  # 👈 Новый способ
+    ])
+    df = None
+    file_path = None  # Переменная для хранения пути
+
+    if method == "Из списка файлов в папке":
         files = [f for f in os.listdir() if f.endswith(".csv")]
         if not files:
-            st.warning("❌ Нет CSV-файлов в папке")
-            return None
+            st.warning("❌ В папке нет CSV-файлов.")
+            return None, None
         file_selected = st.selectbox("Выберите файл", files)
         try:
-            df = try_read_csv(file_selected)
+            df = pd.read_csv(file_selected)
+            file_path = os.path.abspath(file_selected)  # Путь к выбранному файлу
         except Exception as e:
-            st.error(f"❌ Ошибка загрузки: {e}")
-            return None
-    else:
-        uploaded_file = st.file_uploader("Загрузите CSV-файл", type="csv")
-        if uploaded_file:
+            st.error(f"❌ Ошибка при загрузке: {e}")
+            return None, None
+
+    elif method == "Ввести путь вручную":
+        path = st.text_input("Введите путь к CSV-файлу:")
+        if path:
             try:
-                df = try_read_csv(uploaded_file)
+                df = pd.read_csv(path)
+                file_path = path  # Устанавливаем путь вручную
             except Exception as e:
-                st.error(f"❌ Ошибка при чтении: {e}")
-                return None
+                st.error(f"❌ Ошибка при загрузке: {e}")
+                return None, None
+
+    elif method == "Загрузить файл с компьютера":
+        uploaded_file = st.file_uploader("Загрузите CSV-файл", type="csv")
+        if uploaded_file is not None:
+            try:
+                df = pd.read_csv(uploaded_file)
+                file_path = uploaded_file.name  # Путь к загруженному файлу
+            except Exception as e:
+                st.error(f"❌ Ошибка при чтении файла: {e}")
+                return None, None
 
     if df is not None:
-        st.success("✅ Данные загружены")
-        st.write("👀 Предварительный просмотр:")
+        st.success("✅ Данные успешно загружены")
+        st.write("📊 Первые 5 строк данных")
         st.dataframe(df.head())
+        st.write("ℹ️ Информация о DataFrame")
 
         buffer = StringIO()
         df.info(buf=buffer)
-        st.text(buffer.getvalue())
+        s = buffer.getvalue()
+        st.text(s)
 
-        return df
+        return df, file_path
 
-    return None
+    return None, None
 
 def show_missing(df):
-    st.subheader("📉 Пропущенные значения")
+    st.subheader("📉 Анализ пропущенных значений")
     missing = df.isnull().sum()
-    total = missing.sum()
-    if total == 0:
+    total_missing = missing.sum()
+    if total_missing == 0:
         st.success("✅ Нет пропущенных значений")
     else:
-        st.warning(f"⚠️ Обнаружено {total} пропусков")
+        st.warning("⚠️ Пропущенные значения:")
         st.dataframe(missing[missing > 0])
-    return total
+    return total_missing
 
 def fill_missing(df):
-    st.subheader("🛠 Ручное заполнение пропусков")
-    col = st.selectbox("Выберите колонку с пропусками", df.columns[df.isnull().any()])
+    st.subheader("🧩 Заполнение пропусков вручную")
+    col = st.selectbox("Выберите колонку", df.columns[df.isnull().any()])
     dtype = df[col].dtype
 
     if pd.api.types.is_numeric_dtype(dtype):
-        method = st.selectbox("Метод", ["mean", "median", "dropna"])
+        method = st.selectbox("Метод заполнения", ["mean", "median", "dropna"])
         if method == "mean":
             df[col] = df[col].fillna(df[col].mean())
         elif method == "median":
             df[col] = df[col].fillna(df[col].median())
         elif method == "dropna":
             df = df.dropna(subset=[col])
-
     elif pd.api.types.is_object_dtype(dtype):
-        method = st.selectbox("Метод", ["mode", "Unknown", "dropna"])
+        method = st.selectbox("Метод заполнения", ["mode", "Unknown", "dropna"])
         if method == "mode":
             df[col] = df[col].fillna(df[col].mode()[0])
         elif method == "Unknown":
             df[col] = df[col].fillna("Unknown")
         elif method == "dropna":
             df = df.dropna(subset=[col])
-
     elif pd.api.types.is_datetime64_any_dtype(dtype):
-        method = st.selectbox("Метод", ["ffill", "bfill", "interpolate"])
+        method = st.selectbox("Метод заполнения", ["ffill", "bfill", "interpolate"])
         if method == "interpolate":
             df[col] = df[col].interpolate()
         else:
             df[col] = df[col].fillna(method=method)
 
-    st.success(f"✅ Пропуски в '{col}' обработаны")
+    st.success(f"✅ Пропуски в колонке '{col}' обработаны")
     return df
 
 def auto_fill_missing(df):
-    st.subheader("🤖 Автоматическая обработка пропусков")
+    st.subheader("⚙️ Автоматическое заполнение всех пропусков")
     for col in df.columns[df.isnull().any()]:
         dtype = df[col].dtype
         if pd.api.types.is_numeric_dtype(dtype):
@@ -111,29 +117,17 @@ def auto_fill_missing(df):
             df[col] = df[col].fillna("Unknown")
         elif pd.api.types.is_datetime64_any_dtype(dtype):
             df[col] = df[col].fillna(method='ffill')
-    st.success("✅ Все пропуски обработаны")
-    return df
-
-def remove_duplicates(df):
-    st.subheader("🧹 Удаление дубликатов")
-    duplicates = df.duplicated().sum()
-    if duplicates == 0:
-        st.info("✅ Дубликаты не найдены")
-    else:
-        st.warning(f"⚠️ Найдено {duplicates} дубликатов")
-        if st.button("Удалить дубликаты"):
-            df = df.drop_duplicates()
-            st.success("✅ Дубликаты удалены")
+    st.success("✅ Все пропуски обработаны автоматически")
     return df
 
 def aggregate_summary(df):
-    st.subheader("📊 Агрегация и графики")
-    group_col = st.selectbox("Группировать по", df.columns)
+    st.subheader("📊 Агрегация и визуализация")
+    group_col = st.selectbox("Колонка для группировки", df.columns)
     numeric_cols = df.select_dtypes(include=np.number).columns
-    value_col = st.selectbox("Числовая колонка", numeric_cols)
+    value_col = st.selectbox("Числовая колонка для агрегации", numeric_cols)
 
-    agg_func = st.selectbox("Функция", ["mean", "sum", "count", "min", "max"])
-    chart_type = st.selectbox("Тип графика", ["Гистограмма", "Диаграмма рассеяния", "Круговая"])
+    agg_func = st.selectbox("Функция агрегации", ["mean", "sum", "count", "min", "max"])
+    chart_type = st.selectbox("Тип графика", ["Гистограмма", "Диаграмма рассеяния", "Круговая диаграмма"])
 
     try:
         result = df.groupby(group_col)[value_col].agg(agg_func).reset_index()
@@ -144,39 +138,49 @@ def aggregate_summary(df):
             sns.barplot(x=group_col, y=value_col, data=result)
         elif chart_type == "Диаграмма рассеяния":
             sns.scatterplot(x=group_col, y=value_col, data=result)
-        elif chart_type == "Круговая":
+        elif chart_type == "Круговая диаграмма":
             plt.pie(result[value_col], labels=result[group_col], autopct='%1.1f%%')
 
         plt.title(f"{agg_func.upper()} {value_col} по {group_col}")
         plt.xticks(rotation=45)
-        st.pyplot(plt.gcf())
+
+        fig = plt.gcf()
+        st.pyplot(fig)
     except Exception as e:
-        st.error(f"❌ Ошибка визуализации: {e}")
+        st.error(f"❌ Ошибка: {e}")
+
+def save_to_server(df, file_path, filename):
+    """Сохранение файла на сервер в ту же директорию, что и исходный файл"""
+    if file_path:
+        dir_path = os.path.dirname(file_path)  # Путь к директории, где был загружен исходный файл
+        file_path_to_save = os.path.join(dir_path, filename)
+        df.to_csv(file_path_to_save, index=False)
+        st.success(f"✅ Файл успешно сохранен в директории: {file_path_to_save}")
+    else:
+        st.error("❌ Не удалось определить путь для сохранения файла")
 
 def main():
-    st.set_page_config(page_title="Data Cleaner", layout="wide")
-    st.title("🧼 Data Cleaner: Очистка и анализ CSV")
+    st.title("🧼 Очистка и анализ данных")
 
-    df = load_data()
+    df, file_path = load_data()
     if df is None:
         return
 
     if show_missing(df) > 0:
-        if st.checkbox("🔧 Ручная обработка пропусков"):
+        if st.checkbox("🔧 Обработать пропущенные значения вручную"):
             df = fill_missing(df)
-        if st.checkbox("⚙️ Автоматическая обработка"):
+
+        if st.checkbox("🤖 Автоматически обработать все пропуски"):
             df = auto_fill_missing(df)
 
-    df = remove_duplicates(df)
-
-    if st.checkbox("📈 Визуализация и агрегирование"):
+    if st.checkbox("📈 Провести агрегацию и визуализацию"):
         aggregate_summary(df)
 
-    if st.checkbox("💾 Сохранение результата"):
-        filename = st.text_input("Имя файла:", "cleaned_data.csv")
-        if filename:
-            csv = df.to_csv(index=False).encode("utf-8")
-            st.download_button("⬇️ Скачать CSV", csv, file_name=filename, mime="text/csv")
+    if st.checkbox("💾 Сохранить обработанный DataFrame"):
+        filename = st.text_input("Имя файла", "cleaned_data.csv")
+        if st.button("Сохранить"):
+            save_to_server(df, file_path, filename)
+            st.download_button("⬇️ Скачать CSV", df.to_csv(index=False).encode("utf-8"), file_name=filename, mime="text/csv")
 
 if __name__ == "__main__":
     main()
