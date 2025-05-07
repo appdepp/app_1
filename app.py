@@ -169,13 +169,14 @@ def main():
 
         # Кнопка для сохранения в директорию
         if st.button("💾 Сохранить в директорию сервера"):
-            try:
-                df.to_csv(custom_filename, index=False)
-                st.success(f"✅ Файл сохранён на сервере как `{custom_filename}`")
-            except Exception as e:
-                st.error(f"❌ Ошибка при сохранении: {e}")
-            else:
+            if custom_filename.strip() == "":
                 st.error("❌ Пожалуйста, введите имя файла!")
+            else:
+                try:
+                    df.to_csv(custom_filename, index=False)
+                    st.success(f"✅ Файл сохранён на сервере как `{custom_filename}`")
+                except Exception as e:
+                    st.error(f"❌ Ошибка при сохранении: {e}")
 
 if __name__ == "__main__":
     main()
