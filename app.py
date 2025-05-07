@@ -167,26 +167,56 @@ def visualize(df):
 
 # === 9. Главная функция ===
 def main():
+    st.title("🧼 Очистка и анализ данных")
+
     df = load_data()
-    if df is not None:
-        view_data(df)
+    if df is None:
+        return
 
-        if show_missing(df) > 0:
-            if st.checkbox("🔧 Обработать пропущенные значения вручную"):
-                df = fill_missing(df)
+    st.subheader("📊 Обзор данных")
+    st.dataframe(df.head())
 
-            if st.checkbox("🤖 Автоматически обработать все пропуски"):
-                df = auto_fill_missing(df)
+    # Обработка пропущенных значений
+    if show_missing(df) > 0:
+        st.markdown("### 🔍 Обнаружены пропущенные значения")
+        if st.checkbox("🔧 Обработать вручную"):
+            df = fill_missing(df)
 
-        if st.checkbox("🗑 Удалить дубликаты"):
-            df = remove_duplicates(df)
+        if st.checkbox("🤖 Автоматически заполнить пропуски"):
+            df = auto_fill_missing(df)
 
-        if st.checkbox("📉 Удалить выбросы"):
-            df = remove_outliers(df)
+    # Удаление дубликатов
+    if st.checkbox("🧹 Удалить дубликаты"):
+        df = remove_duplicates(df)
 
-        if st.checkbox("📈 Построить визуализацию"):
-            visualize(df)
+    # Удаление выбросов
+    if st.checkbox("📏 Удалить выбросы"):
+        method = st.selectbox("Выберите метод удаления выбросов", ["IQR", "Z-score"])
+        df = remove_outliers(df, method)
 
-# === Запуск ===
+    # Агрегация и визуализация
+    if st.checkbox("📈 Провести агрегацию и визуализацию"):
+        aggregate_summary(df)
+
+    # Сохранение и скачивание
+    if st.checkbox("💾 Сохранить обработанный DataFrame"):
+        default_name = "cleaned_data.csv"
+        filename = st.text_input("Введите имя файла для сохранения (с .csv)", value=default_name)
+
+        if st.button("💾 Сохранить в рабочую директорию"):
+            try:
+                df.to_csv(filename, index=False)
+                st.success(f"✅ Файл сохранён как '{filename}' в текущей директории")
+            except Exception as e:
+                st.error(f"❌ Ошибка при сохранении: {e}")
+
+        # Кнопка для скачивания файла
+        st.download_button(
+            label="⬇️ Скачать как CSV",
+            data=df.to_csv(index=False).encode('utf-8'),
+            file_name=filename,
+            mime='text/csv'
+        )
+
 if __name__ == "__main__":
     main()
