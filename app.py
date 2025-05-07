@@ -133,16 +133,15 @@ def main():
     # Место для динамического отображения
     files_placeholder = st.empty()
 
-    # Добавим кнопку для обновления списка файлов
     if st.button("🔄 Обновить список файлов"):
         files = [f for f in os.listdir() if f.endswith(".csv")]
         if files:
-            # Уникальный ключ для selectbox
+            # Добавляем уникальный ключ для selectbox
             file_selected = files_placeholder.selectbox("Выберите файл", files, key="file_selectbox")
         else:
             st.warning("❌ Нет доступных файлов")
 
-    df = load_data(file_selected=file_selected)  # передаем file_selected в load_data
+    df = load_data()
     if df is None:
         return
 
