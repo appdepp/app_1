@@ -6,17 +6,6 @@ import seaborn as sns
 import os
 from io import StringIO
 
-
-
-def try_read_csv(file):
-    """Пытается прочитать CSV с разными кодировками"""
-    encodings = ['utf-8', 'utf-16', 'cp1251', 'ISO-8859-1']
-    for enc in encodings:
-        try:
-            return pd.read_csv(file, encoding=enc)
-        except Exception:
-            continue
-    raise ValueError("Не удалось прочитать CSV с поддерживаемыми кодировками")
 def load_data():
     st.header("📥 Загрузка данных")
 
@@ -163,31 +152,19 @@ def main():
     if st.checkbox("📈 Провести агрегацию и визуализацию"):
         aggregate_summary(df)
 
-    if st.checkbox("💾 Сохранить / Скачать обработанный DataFrame"):
-        default_filename = "cleaned_data.csv"
+    if st.checkbox("💾 Сохранить обработанный DataFrame"):
+        filename = "cleaned_data.csv"
 
-        # Ввод имени файла
-        custom_filename = st.text_input("Введите имя файла для сохранения", value=default_filename)
+        if st.button("💾 Сохранить в рабочую директорию"):
+            df.to_csv(filename, index=False)
+            st.success(f"✅ Файл сохранён как {filename} в текущей директории")
 
-        # Кнопка для скачивания
-        csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="⬇️ Скачать CSV-файл",
-            data=csv,
-            file_name=custom_filename,
+            label="⬇️ Скачать как CSV",
+            data=df.to_csv(index=False).encode('utf-8'),
+            file_name=filename,
             mime='text/csv'
         )
-
-        # Кнопка для сохранения в директорию
-        if st.button("💾 Сохранить в директорию сервера"):
-            if custom_filename.strip() == "":
-                st.error("❌ Пожалуйста, введите имя файла!")
-            else:
-                try:
-                    df.to_csv(custom_filename, index=False)
-                    st.success(f"✅ Файл сохранён на сервере как `{custom_filename}`")
-                except Exception as e:
-                    st.error(f"❌ Ошибка при сохранении: {e}")
 
 if __name__ == "__main__":
     main()
