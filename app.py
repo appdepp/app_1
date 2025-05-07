@@ -4,18 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
-import logging
+from io import StringIO
 
-# Настройка логирования
-logging.basicConfig(filename="log.txt", level=logging.INFO)
-
-def log_action(action):
-    logging.info(f"{action} | {pd.Timestamp.now()}")
-
-st.set_page_config(page_title="🧼 Чистка и Анализ Данных", layout="wide")
-st.title("📊 Чистка и анализ данных")
-
-# Функции
 def try_read_csv(file):
     """Попытка прочитать CSV с несколькими кодировками"""
     encodings = ['utf-8', 'utf-16', 'cp1251', 'ISO-8859-1']
@@ -26,116 +16,172 @@ def try_read_csv(file):
             continue
     raise ValueError("❌ Не удалось прочитать CSV с поддерживаемыми кодировками")
 
-def save_df_to_file(dataframe, filename):
-    filepath = os.path.join("data", filename)
-    dataframe.to_csv(filepath, index=False)
-    return filepath
+def load_data():
+    st.header("📥 Загрузка данных")
+    method = st.radio("Выберите способ загрузки", ["Из списка файлов", "Загрузить с компьютера"])
+    df = None
 
-# Загрузка данных
-st.header("📁 Загрузка данных")
-df = None
-upload_method = st.radio("Выберите способ загрузки", ["Из папки data/", "Загрузить файл"])
-if upload_method == "Из папки data/":
-    files = [f for f in os.listdir("data") if f.endswith((".csv", ".xlsx", ".xls"))]
-    if files:
-        file_choice = st.selectbox("Выберите файл", files)
-        path = os.path.join("data", file_choice)
+    if method == "Из списка файлов":
+        files = [f for f in os.listdir() if f.endswith(".csv")]
+        if not files:
+            st.warning("❌ Нет CSV-файлов в папке")
+            return None
+        file_selected = st.selectbox("Выберите файл", files)
         try:
-            if file_choice.endswith(".csv"):
-                df = try_read_csv(path)
-            else:
-                df = pd.read_excel(path)
-            log_action(f"Загружен файл: {file_choice}")
+            df = try_read_csv(file_selected)
         except Exception as e:
-            st.error(f"❌ Ошибка при чтении файла: {e}")
+            st.error(f"❌ Ошибка загрузки: {e}")
+            return None
     else:
-        st.warning("⚠️ В папке data/ нет файлов.")
-else:
-    uploaded_file = st.file_uploader("Загрузите CSV или Excel", type=["csv", "xlsx", "xls"])
-    if uploaded_file:
-        try:
-            if uploaded_file.name.endswith(".csv"):
+        uploaded_file = st.file_uploader("Загрузите CSV-файл", type="csv")
+        if uploaded_file:
+            try:
                 df = try_read_csv(uploaded_file)
-            else:
-                df = pd.read_excel(uploaded_file)
-            log_action(f"Загружен файл: {uploaded_file.name}")
-        except Exception as e:
-            st.error(f"❌ Ошибка при чтении файла: {e}")
+            except Exception as e:
+                st.error(f"❌ Ошибка при чтении: {e}")
+                return None
 
-if df is not None:
-    st.subheader("📝 Просмотр данных")
-    st.dataframe(df)
+    if df is not None:
+        st.success("✅ Данные загружены")
+        st.write("👀 Предварительный просмотр:")
+        st.dataframe(df.head())
 
-    # Фильтрация
-    if st.checkbox("🔍 Фильтровать данные"):
-        col = st.selectbox("Колонка", df.columns)
-        vals = st.multiselect("Значения", df[col].unique())
-        if vals:
-            df = df[df[col].isin(vals)]
-            log_action(f"Фильтрация по {col}: {vals}")
+        buffer = StringIO()
+        df.info(buf=buffer)
+        st.text(buffer.getvalue())
 
-    # Пропуски
-    st.subheader("❓ Пропущенные значения")
-    if df.isnull().sum().sum() > 0:
-        st.write(df.isnull().sum())
-        method = st.radio("Заполнить пропуски методом:", ["Среднее", "Медиана", "Удалить строки", "Ничего не делать"])
-        if method == "Среднее":
-            df = df.fillna(df.mean(numeric_only=True))
-            st.success("✅ Заполнено средними")
-            log_action("Заполнение пропусков: среднее")
-        elif method == "Медиана":
-            df = df.fillna(df.median(numeric_only=True))
-            st.success("✅ Заполнено медианой")
-            log_action("Заполнение пропусков: медиана")
-        elif method == "Удалить строки":
-            df = df.dropna()
-            st.success("✅ Удалены строки с пропусками")
-            log_action("Удалены строки с пропущенными значениями")
-    else:
+        return df
+
+    return None
+
+def show_missing(df):
+    st.subheader("📉 Пропущенные значения")
+    missing = df.isnull().sum()
+    total = missing.sum()
+    if total == 0:
         st.success("✅ Нет пропущенных значений")
+    else:
+        st.warning(f"⚠️ Обнаружено {total} пропусков")
+        st.dataframe(missing[missing > 0])
+    return total
 
-    # Удаление дубликатов
-    if st.checkbox("🧹 Удалить дубликаты"):
-        before = len(df)
-        df = df.drop_duplicates()
-        after = len(df)
-        st.success(f"✅ Удалено {before - after} дубликатов")
-        log_action(f"Удалено {before - after} дубликатов")
+def fill_missing(df):
+    st.subheader("🛠 Ручное заполнение пропусков")
+    col = st.selectbox("Выберите колонку с пропусками", df.columns[df.isnull().any()])
+    dtype = df[col].dtype
 
-    # Выбросы
-    if st.checkbox("📦 Посмотреть выбросы (Boxplot)"):
-        col = st.selectbox("Выберите числовую колонку", df.select_dtypes(include=np.number).columns)
-        fig, ax = plt.subplots()
-        sns.boxplot(x=df[col], ax=ax)
-        st.pyplot(fig)
+    if pd.api.types.is_numeric_dtype(dtype):
+        method = st.selectbox("Метод", ["mean", "median", "dropna"])
+        if method == "mean":
+            df[col] = df[col].fillna(df[col].mean())
+        elif method == "median":
+            df[col] = df[col].fillna(df[col].median())
+        elif method == "dropna":
+            df = df.dropna(subset=[col])
 
-    # Агрегация и визуализация
-    st.subheader("📈 Группировка и визуализация")
-    numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
+    elif pd.api.types.is_object_dtype(dtype):
+        method = st.selectbox("Метод", ["mode", "Unknown", "dropna"])
+        if method == "mode":
+            df[col] = df[col].fillna(df[col].mode()[0])
+        elif method == "Unknown":
+            df[col] = df[col].fillna("Unknown")
+        elif method == "dropna":
+            df = df.dropna(subset=[col])
+
+    elif pd.api.types.is_datetime64_any_dtype(dtype):
+        method = st.selectbox("Метод", ["ffill", "bfill", "interpolate"])
+        if method == "interpolate":
+            df[col] = df[col].interpolate()
+        else:
+            df[col] = df[col].fillna(method=method)
+
+    st.success(f"✅ Пропуски в '{col}' обработаны")
+    return df
+
+def auto_fill_missing(df):
+    st.subheader("🤖 Автоматическая обработка пропусков")
+    for col in df.columns[df.isnull().any()]:
+        dtype = df[col].dtype
+        if pd.api.types.is_numeric_dtype(dtype):
+            df[col] = df[col].fillna(df[col].mean())
+        elif pd.api.types.is_object_dtype(dtype):
+            df[col] = df[col].fillna("Unknown")
+        elif pd.api.types.is_datetime64_any_dtype(dtype):
+            df[col] = df[col].fillna(method='ffill')
+    st.success("✅ Все пропуски обработаны")
+    return df
+
+def remove_duplicates(df):
+    st.subheader("🧹 Удаление дубликатов")
+    duplicates = df.duplicated().sum()
+    if duplicates == 0:
+        st.info("✅ Дубликаты не найдены")
+    else:
+        st.warning(f"⚠️ Найдено {duplicates} дубликатов")
+        if st.button("Удалить дубликаты"):
+            df = df.drop_duplicates()
+            st.success("✅ Дубликаты удалены")
+    return df
+
+def aggregate_summary(df):
+    st.subheader("📊 Агрегация и графики")
     group_col = st.selectbox("Группировать по", df.columns)
-    agg_col = st.selectbox("Агрегировать колонку", numeric_cols)
+    numeric_cols = df.select_dtypes(include=np.number).columns
+    value_col = st.selectbox("Числовая колонка", numeric_cols)
+
     agg_func = st.selectbox("Функция", ["mean", "sum", "count", "min", "max"])
-    grouped = df.groupby(group_col)[agg_col].agg(agg_func).reset_index()
-    st.write(grouped)
+    chart_type = st.selectbox("Тип графика", ["Гистограмма", "Диаграмма рассеяния", "Круговая"])
 
-    # Визуализация
-    chart_type = st.radio("Тип графика", ["Bar", "Line", "Pie"])
-    fig, ax = plt.subplots()
-    if chart_type == "Bar":
-        ax.bar(grouped[group_col], grouped[agg_col])
-    elif chart_type == "Line":
-        ax.plot(grouped[group_col], grouped[agg_col])
-    elif chart_type == "Pie":
-        ax.pie(grouped[agg_col], labels=grouped[group_col], autopct="%1.1f%%")
-    st.pyplot(fig)
+    try:
+        result = df.groupby(group_col)[value_col].agg(agg_func).reset_index()
+        st.dataframe(result)
 
-    # Сохранение
-    st.subheader("💾 Сохранить результат")
-    file_name = st.text_input("Имя файла", "result.csv")
-    if st.button("📥 Скачать CSV"):
-        st.download_button("⬇️ Скачать", df.to_csv(index=False), file_name, "text/csv")
-        log_action(f"Скачан CSV: {file_name}")
-    if st.button("💾 Сохранить в папку data/"):
-        path = save_df_to_file(df, file_name)
-        st.success(f"✅ Сохранено: {path}")
-        log_action(f"Сохранено в папку: {file_name}")
+        plt.figure(figsize=(10, 6))
+        if chart_type == "Гистограмма":
+            sns.barplot(x=group_col, y=value_col, data=result)
+        elif chart_type == "Диаграмма рассеяния":
+            sns.scatterplot(x=group_col, y=value_col, data=result)
+        elif chart_type == "Круговая":
+            plt.pie(result[value_col], labels=result[group_col], autopct='%1.1f%%')
+
+        plt.title(f"{agg_func.upper()} {value_col} по {group_col}")
+        plt.xticks(rotation=45)
+        st.pyplot(plt.gcf())
+    except Exception as e:
+        st.error(f"❌ Ошибка визуализации: {e}")
+
+def save_to_server(df, filename):
+    """Сохранение файла на сервер"""
+    file_path = os.path.join('saved_files', filename)  # Директория для сохранения
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    df.to_csv(file_path, index=False)
+    st.success(f"✅ Файл успешно сохранен в директории: {file_path}")
+
+def main():
+    st.set_page_config(page_title="Data Cleaner", layout="wide")
+    st.title("🧼 Data Cleaner: Очистка и анализ CSV")
+
+    df = load_data()
+    if df is None:
+        return
+
+    if show_missing(df) > 0:
+        if st.checkbox("🔧 Ручная обработка пропусков"):
+            df = fill_missing(df)
+        if st.checkbox("⚙️ Автоматическая обработка"):
+            df = auto_fill_missing(df)
+
+    df = remove_duplicates(df)
+
+    if st.checkbox("📈 Визуализация и агрегирование"):
+        aggregate_summary(df)
+
+    if st.checkbox("💾 Сохранение результата"):
+        filename = st.text_input("Имя файла для сохранения:", "cleaned_data.csv")
+        if filename:
+            if st.button("Сохранить на сервер"):
+                save_to_server(df, filename)
+                st.download_button("⬇️ Скачать CSV", df.to_csv(index=False).encode("utf-8"), file_name=filename, mime="text/csv")
+
+if __name__ == "__main__":
+    main()
