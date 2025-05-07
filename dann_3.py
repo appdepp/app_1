@@ -6,46 +6,27 @@ import seaborn as sns
 import os
 from io import StringIO
 
-
-
-def try_read_csv(file):
-    """Пытается прочитать CSV с разными кодировками"""
-    encodings = ['utf-8', 'utf-16', 'cp1251', 'ISO-8859-1']
-    for enc in encodings:
-        try:
-            return pd.read_csv(file, encoding=enc)
-        except Exception:
-            continue
-    raise ValueError("Не удалось прочитать CSV с поддерживаемыми кодировками")
-def load_data():
+def load_data(file_selected=None, uploaded_file=None):
     st.header("📥 Загрузка данных")
 
-    method = st.radio("Выберите способ загрузки", [
-        "Из списка файлов в папке",
-        "Загрузить файл с компьютера"  # ❌ Удалён ручной ввод пути
-    ])
     df = None
 
-    if method == "Из списка файлов в папке":
-        files = [f for f in os.listdir() if f.endswith(".csv")]
-        if not files:
-            st.warning("❌ В папке нет CSV-файлов.")
-            return None
-        file_selected = st.selectbox("Выберите файл", files)
+    if file_selected:
         try:
             df = pd.read_csv(file_selected)
         except Exception as e:
             st.error(f"❌ Ошибка при загрузке: {e}")
             return None
 
-    elif method == "Загрузить файл с компьютера":
-        uploaded_file = st.file_uploader("Загрузите CSV-файл", type="csv")
-        if uploaded_file is not None:
-            try:
+    elif uploaded_file is not None:
+        try:
+            if uploaded_file.name.endswith(".xlsx"):
+                df = pd.read_excel(uploaded_file)
+            else:
                 df = pd.read_csv(uploaded_file)
-            except Exception as e:
-                st.error(f"❌ Ошибка при чтении файла: {e}")
-                return None
+        except Exception as e:
+            st.error(f"❌ Ошибка при чтении файла: {e}")
+            return None
 
     if df is not None:
         st.success("✅ Данные успешно загружены")
@@ -149,7 +130,20 @@ def aggregate_summary(df):
 def main():
     st.title("🧼 Очистка и анализ данных")
 
-    df = load_data()
+    # Кнопка для обновления списка файлов
+    files = [f for f in os.listdir() if f.endswith(".csv")]
+    files_placeholder = st.empty()
+    if st.button("🔄 Обновить список файлов"):
+        if files:
+            files_placeholder.selectbox("Выберите файл", files)
+        else:
+            st.warning("❌ Нет доступных файлов")
+
+    # Загрузка данных
+    file_selected = st.selectbox("Выберите файл", files) if files else None
+    uploaded_file = st.file_uploader("Загрузите файл с компьютера", type=["csv", "xlsx"])
+
+    df = load_data(file_selected=file_selected, uploaded_file=uploaded_file)
     if df is None:
         return
 
@@ -163,31 +157,24 @@ def main():
     if st.checkbox("📈 Провести агрегацию и визуализацию"):
         aggregate_summary(df)
 
-    if st.checkbox("💾 Сохранить / Скачать обработанный DataFrame"):
-        default_filename = "cleaned_data.csv"
+    if st.checkbox("💾 Сохранить обработанный DataFrame"):
+        default_name = "cleaned_data.csv"
+        filename = st.text_input("Введите имя файла для сохранения (с .csv)", value=default_name)
 
-        # Ввод имени файла
-        custom_filename = st.text_input("Введите имя файла для сохранения", value=default_filename)
+        if st.button("💾 Сохранить в рабочую директорию"):
+            try:
+                df.to_csv(filename, index=False)
+                st.success(f"✅ Файл сохранён как '{filename}' в текущей директории")
+            except Exception as e:
+                st.error(f"❌ Ошибка при сохранении: {e}")
 
         # Кнопка для скачивания
-        csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="⬇️ Скачать CSV-файл",
-            data=csv,
-            file_name=custom_filename,
+            label="⬇️ Скачать как CSV",
+            data=df.to_csv(index=False).encode('utf-8'),
+            file_name=filename,
             mime='text/csv'
         )
-
-        # Кнопка для сохранения в директорию
-        if st.button("💾 Сохранить в директорию сервера"):
-            if custom_filename.strip() == "":
-                st.error("❌ Пожалуйста, введите имя файла!")
-            else:
-                try:
-                    df.to_csv(custom_filename, index=False)
-                    st.success(f"✅ Файл сохранён на сервере как `{custom_filename}`")
-                except Exception as e:
-                    st.error(f"❌ Ошибка при сохранении: {e}")
 
 if __name__ == "__main__":
     main()
