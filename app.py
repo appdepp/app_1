@@ -6,38 +6,27 @@ import seaborn as sns
 import os
 from io import StringIO
 
-def load_data():
+def load_data(file_selected=None, uploaded_file=None):
     st.header("📥 Загрузка данных")
 
-    method = st.radio("Выберите способ загрузки", [
-        "Из списка файлов в папке",
-        "Загрузить файл с компьютера"
-    ])
     df = None
 
-    if method == "Из списка файлов в папке":
-        files = [f for f in os.listdir() if f.endswith(".csv")]
-        if not files:
-            st.warning("❌ В папке нет CSV-файлов.")
-            return None
-        file_selected = st.selectbox("Выберите файл", files)
+    if file_selected:
         try:
             df = pd.read_csv(file_selected)
         except Exception as e:
             st.error(f"❌ Ошибка при загрузке: {e}")
             return None
 
-    elif method == "Загрузить файл с компьютера":
-        uploaded_file = st.file_uploader("Загрузите файл", type=["csv", "xlsx"])
-        if uploaded_file is not None:
-            try:
-                if uploaded_file.name.endswith(".xlsx"):
-                    df = pd.read_excel(uploaded_file)
-                else:
-                    df = pd.read_csv(uploaded_file)
-            except Exception as e:
-                st.error(f"❌ Ошибка при чтении файла: {e}")
-                return None
+    elif uploaded_file is not None:
+        try:
+            if uploaded_file.name.endswith(".xlsx"):
+                df = pd.read_excel(uploaded_file)
+            else:
+                df = pd.read_csv(uploaded_file)
+        except Exception as e:
+            st.error(f"❌ Ошибка при чтении файла: {e}")
+            return None
 
     if df is not None:
         st.success("✅ Данные успешно загружены")
@@ -141,17 +130,20 @@ def aggregate_summary(df):
 def main():
     st.title("🧼 Очистка и анализ данных")
 
-    # Место для динамического отображения
+    # Кнопка для обновления списка файлов
+    files = [f for f in os.listdir() if f.endswith(".csv")]
     files_placeholder = st.empty()
-
     if st.button("🔄 Обновить список файлов"):
-        files = [f for f in os.listdir() if f.endswith(".csv")]
         if files:
             files_placeholder.selectbox("Выберите файл", files)
         else:
             st.warning("❌ Нет доступных файлов")
 
-    df = load_data()
+    # Загрузка данных
+    file_selected = st.selectbox("Выберите файл", files) if files else None
+    uploaded_file = st.file_uploader("Загрузите файл с компьютера", type=["csv", "xlsx"])
+
+    df = load_data(file_selected=file_selected, uploaded_file=uploaded_file)
     if df is None:
         return
 
