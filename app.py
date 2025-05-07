@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt  # For plotting graphs
 import seaborn as sns   # For enhanced visualizations based on matplotlib
 import os               # For file system operations
 from io import StringIO # For displaying information about DataFrame
+import io
 
 # Function to load data from a file or using a file uploader
 def load_data():
@@ -171,6 +172,38 @@ def clear_data_folder():
         except Exception as e:
             st.error(f"❌ Error deleting files: {e}")
 
+# Function to save processed data
+def save_processed_data(df):
+    st.subheader("💾 Save Processed Data")
+    default_name = "cleaned_data.csv"
+    filename = st.text_input("Enter file name for saving (with .csv)", value=default_name)
+
+    if st.button("💾 Save to current directory"):
+        try:
+            df.to_csv(filename, index=False)
+            st.success(f"✅ File saved as '{filename}' in the current directory")
+        except Exception as e:
+            st.error(f"❌ Error saving file: {e}")
+
+    # Download the processed file
+    st.download_button(
+        label="⬇️ Download as CSV",
+        data=df.to_csv(index=False).encode('utf-8'),
+        file_name=filename,
+        mime='text/csv'
+    )
+
+    if st.checkbox("📥 Download as Excel (.xlsx)"):
+        towrite = io.BytesIO()
+        df.to_excel(towrite, index=False, sheet_name='Data')
+        towrite.seek(0)
+        st.download_button(
+            label="⬇️ Download Excel file",
+            data=towrite,
+            file_name="cleaned_data.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
 # Main function for the application
 def main():
     st.title("🧼 Data Cleaning and Analysis")
@@ -208,36 +241,7 @@ def main():
     clear_data_folder()
 
     # Save processed data
-    if st.checkbox("💾 Save processed DataFrame"):
-        default_name = "cleaned_data.csv"
-        filename = st.text_input("Enter file name for saving (with .csv)", value=default_name)
-
-        if st.button("💾 Save to current directory"):
-            try:
-                df.to_csv(filename, index=False)
-                st.success(f"✅ File saved as '{filename}' in the current directory")
-            except Exception as e:
-                st.error(f"❌ Error saving file: {e}")
-
-        # Download the processed file
-        st.download_button(
-            label="⬇️ Download as CSV",
-            data=df.to_csv(index=False).encode('utf-8'),
-            file_name=filename,
-            mime='text/csv'
-        )
-        import io
-
-        if st.checkbox("📥 Download as Excel (.xlsx)"):
-            towrite = io.BytesIO()
-            df.to_excel(towrite, index=False, sheet_name='Data')
-            towrite.seek(0)
-            st.download_button(
-                label="⬇️ Download Excel file",
-                data=towrite,
-                file_name="cleaned_data.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+    save_processed_data(df)
 
 # Run the application
 if __name__ == "__main__":
