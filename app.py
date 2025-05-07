@@ -4,14 +4,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
+from io import StringIO
 
 def load_data():
     st.header("📥 Загрузка данных")
 
     method = st.radio("Выберите способ загрузки", [
         "Из списка файлов в папке",
-        "Загрузить файл с компьютера",
-        "Загрузить Excel-файл"
+        "Загрузить файл с компьютера"
     ])
     df = None
 
@@ -22,7 +22,7 @@ def load_data():
             return None
         file_selected = st.selectbox("Выберите файл", files)
         try:
-            df = pd.read_csv(file_selected, encoding='ISO-8859-1')
+            df = pd.read_csv(file_selected)
         except Exception as e:
             st.error(f"❌ Ошибка при загрузке: {e}")
             return None
@@ -31,18 +31,9 @@ def load_data():
         uploaded_file = st.file_uploader("Загрузите CSV-файл", type="csv")
         if uploaded_file is not None:
             try:
-                df = pd.read_csv(uploaded_file, encoding='ISO-8859-1')
+                df = pd.read_csv(uploaded_file)
             except Exception as e:
                 st.error(f"❌ Ошибка при чтении файла: {e}")
-                return None
-
-    elif method == "Загрузить Excel-файл":
-        uploaded_excel = st.file_uploader("Загрузите Excel-файл", type="xlsx")
-        if uploaded_excel is not None:
-            try:
-                df = pd.read_excel(uploaded_excel)
-            except Exception as e:
-                st.error(f"❌ Ошибка при чтении Excel-файла: {e}")
                 return None
 
     if df is not None:
@@ -51,7 +42,6 @@ def load_data():
         st.dataframe(df.head())
         st.write("ℹ️ Информация о DataFrame")
 
-        from io import StringIO
         buffer = StringIO()
         df.info(buf=buffer)
         s = buffer.getvalue()
@@ -163,19 +153,19 @@ def main():
         aggregate_summary(df)
 
     if st.checkbox("💾 Сохранить обработанный DataFrame"):
-        filename = st.text_input("Имя файла", "cleaned_data.csv")
-        if st.button("Сохранить"):
-            df.to_csv(filename, index=False)
-            st.success(f"✅ Сохранено как {filename}")
+        filename = "cleaned_data.csv"
 
-            # Добавляем кнопку для скачивания
-            csv = df.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                label="⬇️ Скачать CSV",
-                data=csv,
-                file_name=filename,
-                mime="text/csv"
-            )
+        if st.button("💾 Сохранить в рабочую директорию"):
+            df.to_csv(filename, index=False)
+            st.success(f"✅ Файл сохранён как {filename} в текущей директории")
+
+        # Кнопка для скачивания
+        st.download_button(
+            label="⬇️ Скачать как CSV",
+            data=df.to_csv(index=False).encode('utf-8'),
+            file_name=filename,
+            mime='text/csv'
+        )
 
 if __name__ == "__main__":
     main()
