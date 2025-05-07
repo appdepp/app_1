@@ -177,7 +177,8 @@ def main():
     st.dataframe(df.head())
 
     # Обработка пропущенных значений
-    if show_missing(df) > 0:
+    total_missing = show_missing(df)
+    if total_missing > 0:
         st.markdown("### 🔍 Обнаружены пропущенные значения")
         if st.checkbox("🔧 Обработать вручную"):
             df = fill_missing(df)
