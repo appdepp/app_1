@@ -130,18 +130,20 @@ def aggregate_summary(df):
 def main():
     st.title("🧼 Очистка и анализ данных")
 
-    # Место для динамического отображения
+    # Кнопка для обновления списка файлов
+    files = [f for f in os.listdir() if f.endswith(".csv")]
     files_placeholder = st.empty()
-
     if st.button("🔄 Обновить список файлов"):
-        files = [f for f in os.listdir() if f.endswith(".csv")]
         if files:
-            # Добавляем уникальный ключ для selectbox
-            file_selected = files_placeholder.selectbox("Выберите файл", files, key="file_selectbox")
+            files_placeholder.selectbox("Выберите файл", files)
         else:
             st.warning("❌ Нет доступных файлов")
 
-    df = load_data()
+    # Загрузка данных
+    file_selected = st.selectbox("Выберите файл", files) if files else None
+    uploaded_file = st.file_uploader("Загрузите файл с компьютера", type=["csv", "xlsx"])
+
+    df = load_data(file_selected=file_selected, uploaded_file=uploaded_file)
     if df is None:
         return
 
