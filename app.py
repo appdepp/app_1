@@ -21,23 +21,29 @@ def load_data():
 
     # Loading from the current directory
     if method == "From file list in folder":
-        files = [f for f in os.listdir() if f.endswith(".csv")]
+        files = [f for f in os.listdir() if f.endswith((".csv", ".xlsx"))]  # Support both CSV and Excel
         if not files:
-            st.warning("❌ No CSV files in the folder.")
+            st.warning("❌ No CSV or Excel files in the folder.")
             return None
         file_selected = st.selectbox("Select a file", files)
         try:
-            df = pd.read_csv(file_selected, on_bad_lines='skip')
+            if file_selected.endswith(".csv"):
+                df = pd.read_csv(file_selected, on_bad_lines='skip')
+            elif file_selected.endswith(".xlsx"):
+                df = pd.read_excel(file_selected, engine="openpyxl")  # Use engine for reading Excel
         except Exception as e:
             st.error(f"❌ Error while loading: {e}")
             return None
 
     # Uploading from computer
     elif method == "Upload file from computer":
-        uploaded_file = st.file_uploader("Upload a CSV file", type="csv")
+        uploaded_file = st.file_uploader("Upload a CSV or Excel file", type=["csv", "xlsx"])
         if uploaded_file is not None:
             try:
-                df = pd.read_csv(uploaded_file, on_bad_lines='skip')
+                if uploaded_file.name.endswith(".csv"):
+                    df = pd.read_csv(uploaded_file, on_bad_lines='skip')
+                elif uploaded_file.name.endswith(".xlsx"):
+                    df = pd.read_excel(uploaded_file, engine="openpyxl")  # Use engine for reading Excel
             except Exception as e:
                 st.error(f"❌ Error reading file: {e}")
                 return None
@@ -160,15 +166,15 @@ def aggregate_summary(df):
 # Function to clear files from the current directory
 def clear_data_folder():
     st.subheader("🧹 Clear Data Folder")
-    if st.button("Clear all CSV files in the folder"):
+    if st.button("Clear all CSV and Excel files in the folder"):
         try:
-            files = [f for f in os.listdir() if f.endswith(".csv")]
+            files = [f for f in os.listdir() if f.endswith((".csv", ".xlsx"))]
             if files:
                 for file in files:
                     os.remove(file)
-                st.success("✅ All CSV files have been deleted from the folder")
+                st.success("✅ All CSV and Excel files have been deleted from the folder")
             else:
-                st.warning("❌ No CSV files found in the folder to delete.")
+                st.warning("❌ No CSV or Excel files found in the folder to delete.")
         except Exception as e:
             st.error(f"❌ Error deleting files: {e}")
 
