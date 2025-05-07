@@ -3,25 +3,62 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+import os
+from io import StringIO
 from scipy.stats import zscore
 
 # === 1. Загрузка данных ===
 def load_data():
     st.title("🧹 Очистка и анализ данных")
-    file = st.file_uploader("Загрузите CSV-файл", type=["csv"])
-    if file:
-        try:
-            df = pd.read_csv(file, encoding="utf-8")
-        except UnicodeDecodeError:
-            df = pd.read_csv(file, encoding="ISO-8859-1")
+    method = st.radio("Выберите способ загрузки", [
+        "Из списка файлов в папке",
+        "Загрузить файл с компьютера"
+    ])
+    df = None
 
+    if method == "Из списка файлов в папке":
+        files = [f for f in os.listdir() if f.endswith(".csv")]
+        if not files:
+            st.warning("❌ В папке нет CSV-файлов.")
+            return None
+        file_selected = st.selectbox("Выберите файл", files)
+        try:
+            df = pd.read_csv(file_selected, encoding="utf-8")
+        except UnicodeDecodeError:
+            df = pd.read_csv(file_selected, encoding="ISO-8859-1")
+        except Exception as e:
+            st.error(f"❌ Ошибка при загрузке: {e}")
+            return None
+
+    elif method == "Загрузить файл с компьютера":
+        uploaded_file = st.file_uploader("Загрузите CSV-файл", type="csv")
+        if uploaded_file is not None:
+            try:
+                df = pd.read_csv(uploaded_file, encoding="utf-8")
+            except UnicodeDecodeError:
+                df = pd.read_csv(uploaded_file, encoding="ISO-8859-1")
+            except Exception as e:
+                st.error(f"❌ Ошибка при чтении файла: {e}")
+                return None
+
+    if df is not None:
         if df.empty:
             st.warning("⚠️ Загруженный файл пустой.")
             return None
 
         df.columns = df.columns.str.strip()
-        st.success("✅ Данные успешно загружены!")
+        st.success("✅ Данные успешно загружены")
+        st.write("📊 Первые 5 строк данных")
+        st.dataframe(df.head())
+
+        st.write("ℹ️ Информация о DataFrame")
+        buffer = StringIO()
+        df.info(buf=buffer)
+        s = buffer.getvalue()
+        st.text(s)
+
         return df
+
     return None
 
 # === 2. Просмотр данных ===
@@ -32,19 +69,19 @@ def view_data(df):
 
 # === 3. Анализ пропусков ===
 def show_missing(df):
-    st.subheader("📊 Анализ пропущенных значений")
+    st.subheader("📉 Анализ пропущенных значений")
     missing = df.isnull().sum()
-    missing = missing[missing > 0]
-    if not missing.empty:
-        st.write(missing)
-        return missing.sum()
+    total_missing = missing.sum()
+    if total_missing == 0:
+        st.success("✅ Нет пропущенных значений")
     else:
-        st.success("🎉 Пропущенных значений нет!")
-        return 0
+        st.warning("⚠️ Пропущенные значения:")
+        st.dataframe(missing[missing > 0])
+    return total_missing
 
 # === 4. Заполнение пропусков вручную ===
 def fill_missing(df):
-    st.subheader("✏️ Ручная обработка пропусков")
+    st.subheader("🧩 Заполнение пропусков вручную")
     for col in df.columns[df.isnull().any()]:
         st.write(f"📌 Обработка колонки: **{col}**")
         if df[col].dtype == "object":
@@ -111,7 +148,6 @@ def remove_outliers(df):
 
     removed = original_size - df.shape[0]
     st.success(f"✅ Удалено выбросов: {removed} строк")
-
     return df
 
 # === 8. Визуализация данных ===
@@ -151,6 +187,6 @@ def main():
         if st.checkbox("📈 Построить визуализацию"):
             visualize(df)
 
-# Запуск
+# === Запуск ===
 if __name__ == "__main__":
     main()
