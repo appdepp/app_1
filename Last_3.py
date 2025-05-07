@@ -43,7 +43,6 @@ def load_data():
 
     # Отображаем информацию о загруженных данных
     if df is not None:
-        df = df.apply(lambda col: pd.to_numeric(col, errors='ignore') if col.dtypes == 'object' else col)
         st.success("✅ Данные успешно загружены")
         st.write("📊 Первые 5 строк данных")
         st.dataframe(df.head())
