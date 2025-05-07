@@ -6,7 +6,6 @@ import seaborn as sns
 import os
 from io import StringIO
 
-
 def load_data():
     st.header("📥 Загрузка данных")
 
@@ -30,16 +29,15 @@ def load_data():
 
     elif method == "Загрузить файл с компьютера":
         uploaded_file = st.file_uploader("Загрузите файл", type=["csv", "xlsx"])
-        if uploaded_file.name.endswith(".xlsx"):
-            df = pd.read_excel(uploaded_file)
-        else:
-            df = pd.read_csv(uploaded_file)
-            if uploaded_file is not None:
-                try:
+        if uploaded_file is not None:
+            try:
+                if uploaded_file.name.endswith(".xlsx"):
+                    df = pd.read_excel(uploaded_file)
+                else:
                     df = pd.read_csv(uploaded_file)
-                except Exception as e:
-                    st.error(f"❌ Ошибка при чтении файла: {e}")
-                    return None
+            except Exception as e:
+                st.error(f"❌ Ошибка при чтении файла: {e}")
+                return None
 
     if df is not None:
         st.success("✅ Данные успешно загружены")
@@ -56,7 +54,6 @@ def load_data():
 
     return None
 
-
 def show_missing(df):
     st.subheader("📉 Анализ пропущенных значений")
     missing = df.isnull().sum()
@@ -67,7 +64,6 @@ def show_missing(df):
         st.warning("⚠️ Пропущенные значения:")
         st.dataframe(missing[missing > 0])
     return total_missing
-
 
 def fill_missing(df):
     st.subheader("🧩 Заполнение пропусков вручную")
@@ -100,7 +96,6 @@ def fill_missing(df):
     st.success(f"✅ Пропуски в колонке '{col}' обработаны")
     return df
 
-
 def auto_fill_missing(df):
     st.subheader("⚙️ Автоматическое заполнение всех пропусков")
     for col in df.columns[df.isnull().any()]:
@@ -113,7 +108,6 @@ def auto_fill_missing(df):
             df[col] = df[col].fillna(method='ffill')
     st.success("✅ Все пропуски обработаны автоматически")
     return df
-
 
 def aggregate_summary(df):
     st.subheader("📊 Агрегация и визуализация")
@@ -144,21 +138,9 @@ def aggregate_summary(df):
     except Exception as e:
         st.error(f"❌ Ошибка: {e}")
 
-
 def main():
     st.title("🧼 Очистка и анализ данных")
-
-    # Initialize rerun state
-    if "rerun" not in st.session_state:
-        st.session_state.rerun = False
-
-    # Update rerun state when the button is pressed
     if st.button("🔄 Обновить список файлов"):
-        st.session_state.rerun = True
-
-    # Trigger rerun if session_state.rerun is True
-    if st.session_state.rerun:
-        st.session_state.rerun = False
         st.experimental_rerun()
 
     df = load_data()
@@ -193,7 +175,6 @@ def main():
             file_name=filename,
             mime='text/csv'
         )
-
 
 if __name__ == "__main__":
     main()
