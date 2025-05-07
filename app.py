@@ -156,6 +156,21 @@ def aggregate_summary(df):
     except Exception as e:
         st.error(f"❌ Error: {e}")
 
+# Function to clear files from the current directory
+def clear_data_folder():
+    st.subheader("🧹 Clear Data Folder")
+    if st.button("Clear all CSV files in the folder"):
+        try:
+            files = [f for f in os.listdir() if f.endswith(".csv")]
+            if files:
+                for file in files:
+                    os.remove(file)
+                st.success("✅ All CSV files have been deleted from the folder")
+            else:
+                st.warning("❌ No CSV files found in the folder to delete.")
+        except Exception as e:
+            st.error(f"❌ Error deleting files: {e}")
+
 # Main function for the application
 def main():
     st.title("🧼 Data Cleaning and Analysis")
@@ -188,6 +203,9 @@ def main():
         fig, ax = plt.subplots(figsize=(10, 6))
         sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
         st.pyplot(fig)
+
+    # Clear data folder
+    clear_data_folder()
 
     # Save processed data
     if st.checkbox("💾 Save processed DataFrame"):
